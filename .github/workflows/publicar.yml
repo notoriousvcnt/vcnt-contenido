@@ -1,0 +1,25 @@
+name: Publicar versión
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    env:
+      ARCHIVO: vcnt-contenido.php          # en vcnt-contenido: vcnt-contenido.php
+    steps:
+      - uses: actions/checkout@v4
+      - name: Revisar sintaxis PHP
+        run: find . -path ./lib -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Leer versión
+        id: v
+        run: echo "version=$(grep -m1 'Version:' "$ARCHIVO" | sed -E 's/.*Version:[[:space:]]*//' | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
+      - name: Crear release si la versión es nueva
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ steps.v.outputs.version }}
+        run: |
+          if gh release view "v$V" >/dev/null 2>&1; then echo "v$V ya existe, nada que publicar"; exit 0; fi
+          gh release create "v$V" --target "$GITHUB_SHA" --title "v$V" --generate-notes
